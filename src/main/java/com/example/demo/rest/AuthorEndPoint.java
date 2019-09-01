@@ -26,31 +26,33 @@ public class AuthorEndPoint {
     private BookRepository bookRepository;
 
     @PostMapping
-    public ResponseEntity<Void> save(@RequestBody Author author) {
+    public ResponseEntity<AuthorResource> save(@RequestBody Author author) {
         authorRepository.save(author);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return ResponseEntity.status(HttpStatus.CREATED).body(new AuthorResource(author));
     }
 
     @GetMapping
-    public ResponseEntity<List<Author>> findAll() {
-        return ResponseEntity.ok(authorRepository.findAll());
+    public ResponseEntity<Resources<AuthorResource>> findAll() {
+        List<AuthorResource> collect = authorRepository.findAll().stream().map(AuthorResource::new).collect(Collectors.toList());
+        Resources<AuthorResource> resources = new Resources<>(collect);
+        String uriString = ServletUriComponentsBuilder.fromCurrentRequest().build().toUriString();
+        resources.add(new Link(uriString, "self"));
+        return ResponseEntity.ok(resources);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<AuthorResource> findById(@PathVariable long id) {
         Optional<Author> findById = authorRepository.findById(id);
-        if (!findById.isPresent()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
-        return ResponseEntity.ok(findById.map(AuthorResource::new).get());
+        return findById.map(author -> ResponseEntity.ok(new AuthorResource(author))).
+                orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
-    @GetMapping(value = "/{authorId}/books")
+    @GetMapping("/{authorId}/books")
     public ResponseEntity<Resources<BookResource>> findBooksByAuthorId(@PathVariable long authorId) {
         List<BookResource> booksByAuthorId = findAllBookByAuthor(authorId);
         Resources<BookResource> bookResources = new Resources<>(booksByAuthorId);
         String toUriString = ServletUriComponentsBuilder.fromCurrentRequest().build().toUriString();
-        bookResources.add(new Link(toUriString, "self"));
+        bookResources.add(new Link(toUriString, "books"));
         return ResponseEntity.ok(bookResources);
     }
 
@@ -62,19 +64,15 @@ public class AuthorEndPoint {
     }
 
     @PutMapping
-    public ResponseEntity update(@RequestBody Author author) {
+    public ResponseEntity<AuthorResource> update(@RequestBody Author author) {
         Optional<Author> repoAuthor = authorRepository.findById(author.getId());
-        if (!repoAuthor.isPresent()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
-        Optional<Author> mapAuthor = repoAuthor.map(a -> {
+        return repoAuthor.map(a -> {
             a.setName(author.getName());
             a.setSurname(author.getSurname());
             a.setAge(author.getAge());
-            return a;
-        });
-        authorRepository.save(mapAuthor.get());
-        return ResponseEntity.ok().body("author is update");
+            authorRepository.save(a);
+            return ResponseEntity.ok().body(new AuthorResource(a));
+        }).orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
     @DeleteMapping

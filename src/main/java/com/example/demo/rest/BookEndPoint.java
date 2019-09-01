@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 @RestController
-@RequestMapping(value = "/api/books", produces = "application/hal+json")
+@RequestMapping(value = "books")
 @AllArgsConstructor
 public class BookEndPoint {
 
@@ -29,7 +29,7 @@ public class BookEndPoint {
         return ResponseEntity.ok(bookRepository.findAll());
     }
 
-    @GetMapping("/{id}")
+    @GetMapping(value = "/{id}", produces = "application/hal+json")
     public ResponseEntity<BookResource> findById(@PathVariable long id) {
         Optional<Book> findById = bookRepository.findById(id);
         if (!findById.isPresent()) {
